@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Muito Obrigado! — WebAR</title>
+
+  <!-- MindAR + A-Frame -->
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: Arial, sans-serif;
+    }
+
+    /* A câmera fica atrás do canvas AR. O canvas precisa ser transparente. */
+    video.mindar-video, video {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: cover !important;
+      z-index: 0 !important;
+      opacity: 1 !important;
+      display: block !important;
+    }
+
+    a-scene {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1 !important;
+      background: transparent !important;
+    }
+
+    canvas.a-canvas {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1 !important;
+      pointer-events: none;
+      background: transparent !important;
+    }
+
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #06152b 0%, #000 72%);
+      color: #fff;
+      text-align: center;
+    }
+
+    #start .box {
+      width: min(86vw, 360px);
+      padding: 28px 22px;
+      border: 1px solid #00aaff;
+      border-radius: 20px;
+      box-shadow: 0 0 30px #008cff55, inset 0 0 20px #008cff18;
+      background: #020914dd;
+      backdrop-filter: blur(8px);
+    }
+
+    #start h1 {
+      color: #54d8ff;
+      margin: 0 0 12px;
+      font-size: 28px;
+      text-shadow: 0 0 15px #00cfff;
+    }
+
+    #start p {
+      line-height: 1.5;
+      color: #d8f5ff;
+      margin: 0 0 20px;
+    }
+
+    #start button {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 24px;
+      background: #00aaff;
+      color: #00101a;
+      font-weight: 800;
+      font-size: 16px;
+      box-shadow: 0 0 22px #00aaff88;
+    }
+
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      z-index: 10;
+      color: white;
+      font: 600 15px Arial, sans-serif;
+      text-align: center;
+      text-shadow: 0 2px 8px #000, 0 0 10px #00cfff;
+      width: 90%;
+      pointer-events: none;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+
+<body>
+  <div id="start">
+    <div class="box">
+      <h1>🤖 WebAR</h1>
+      <p>Permita o acesso à câmera e aponte o celular para o marcador azul da apresentação.</p>
+      <button id="startBtn">ATIVAR CÂMERA</button>
+    </div>
+  </div>
+
+  <div id="hint" class="hidden">Aponte para a imagem azul da apresentação…</div>
+
+  <a-scene
+    id="scene"
+    mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no"
+    color-space="sRGB"
+    renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    embedded>
+
+    <a-assets></a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+
+      <!-- Plataforma holográfica -->
+      <a-entity id="platform" position="0 -0.98 0.04">
+        <a-ring radius-inner="0.42" radius-outer="0.62" rotation="-90 0 0"
+                material="color:#00d9ff; shader:flat; opacity:0.42; transparent:true"
+                animation="property:rotation; to:-90 360 0; dur:5000; loop:true; easing:linear"></a-ring>
+
+        <a-ring radius-inner="0.68" radius-outer="0.72" rotation="-90 0 0"
+                material="color:#009cff; shader:flat; opacity:0.55; transparent:true"
+                animation="property:rotation; to:-90 -360 0; dur:8000; loop:true; easing:linear"></a-ring>
+
+        <a-circle radius="0.55" rotation="-90 0 0"
+                  material="color:#006a9b; shader:flat; opacity:0.08; transparent:true"></a-circle>
+      </a-entity>
+
+      <!-- Robô -->
+      <a-entity id="robot" position="0 0.05 0.15" scale="0.52 0.52 0.52">
+
+        <!-- Aura -->
+        <a-sphere radius="0.95" position="0 0.05 -0.08"
+                  material="color:#00cfff; shader:flat; opacity:0.035; transparent:true"></a-sphere>
+
+        <!-- Corpo principal -->
+        <a-entity id="body" position="0 -0.12 0">
+          <a-sphere scale="0.58 0.70 0.45"
+                    material="color:#07182c; metalness:0.75; roughness:0.22; emissive:#003d68; emissiveIntensity:0.8"></a-sphere>
+
+          <!-- Peitoral -->
+          <a-box position="0 0.02 0.40" width="0.56" height="0.48" depth="0.055"
+                 material="color:#0a2945; metalness:0.85; roughness:0.18; emissive:#005c91; emissiveIntensity:0.7"></a-box>
+
+          <a-ring position="0 0.01 0.445" radius-inner="0.095" radius-outer="0.15"
+                  rotation="90 0 0"
+                  material="color:#ffffff; emissive:#00d9ff; emissiveIntensity:2.2"></a-ring>
+
+          <a-sphere position="0 0.01 0.46" radius="0.052"
+                    material="color:#eaffff; emissive:#00d9ff; emissiveIntensity:2.5"></a-sphere>
+
+          <!-- Linhas de energia -->
+          <a-torus position="0 0.22 0.42" rotation="90 0 0"
+                   radius="0.35" radius-tubular="0.012"
+                   material="color:#00cfff; emissive:#00aaff; emissiveIntensity:1.5"></a-torus>
+        </a-entity>
+
+        <!-- Pescoço -->
+        <a-cylinder position="0 0.42 0" radius="0.17" height="0.18"
+                     material="color:#071522; metalness:0.9; roughness:0.2; emissive:#004e78; emissiveIntensity:0.6"></a-cylinder>
+
+        <!-- Cabeça -->
+        <a-entity id="head" position="0 0.67 0">
+
+          <a-sphere scale="0.60 0.47 0.42"
+                    material="color:#0a2037; metalness:0.78; roughness:0.2; emissive:#00466f; emissiveIntensity:0.8"></a-sphere>
+
+          <!-- Borda luminosa da cabeça -->
+          <a-torus rotation="90 0 0" radius="0.49" radius-tubular="0.018"
+                   material="color:#00cfff; emissive:#00cfff; emissiveIntensity:1.8"></a-torus>
+
+          <!-- Visor -->
+          <a-sphere position="0 0 -0.385" scale="0.48 0.27 0.035"
+                    material="color:#001018; metalness:0.35; roughness:0.1; emissive:#003a55; emissiveIntensity:1.2"></a-sphere>
+
+          <!-- Brilho do visor -->
+          <a-plane position="0 0.005 -0.423" width="0.74" height="0.34"
+                   material="color:#02121e; shader:flat; opacity:0.9; transparent:true"></a-plane>
+
+          <!-- Olhos -->
+          <a-sphere id="eyeL" position="-0.17 0.035 -0.445" radius="0.065"
+                    material="color:#dfffff; emissive:#00d9ff; emissiveIntensity:3"></a-sphere>
+          <a-sphere id="eyeR" position="0.17 0.035 -0.445" radius="0.065"
+                    material="color:#dfffff; emissive:#00d9ff; emissiveIntensity:3"></a-sphere>
+
+          <!-- Antena -->
+          <a-cylinder position="0 0.49 0" radius="0.018" height="0.18"
+                       material="color:#69eaff; emissive:#00cfff; emissiveIntensity:1.8"></a-cylinder>
+          <a-sphere id="antennaDot" position="0 0.60 0" radius="0.045"
+                    material="color:#ffffff; emissive:#00d9ff; emissiveIntensity:3"></a-sphere>
+        </a-entity>
+
+        <!-- Ombro esquerdo -->
+        <a-sphere position="-0.58 0.10 0" scale="0.19 0.19 0.19"
+                  material="color:#0a263e; metalness:0.85; roughness:0.2; emissive:#00537d; emissiveIntensity:0.8"></a-sphere>
+
+        <!-- Braço esquerdo -->
+        <a-entity id="leftArm" position="-0.66 -0.02 0" rotation="0 0 18">
+          <a-cylinder position="0 -0.25 0" radius="0.105" height="0.48"
+                       material="color:#09243b; metalness:0.8; roughness:0.24; emissive:#004e78; emissiveIntensity:0.7"></a-cylinder>
+          <a-torus position="0 -0.50 0" radius="0.105" radius-tubular="0.025"
+                   material="color:#00bfff; emissive:#00bfff; emissiveIntensity:1.4"></a-torus>
+          <a-sphere position="0 -0.63 0" scale="0.16 0.16 0.13"
+                    material="color:#0a2944; metalness:0.75; roughness:0.2; emissive:#005f8f; emissiveIntensity:0.8"></a-sphere>
+        </a-entity>
+
+        <!-- Ombro direito / braço que acena -->
+        <a-entity id="waveArm" position="0.61 0.10 0">
+          <a-sphere position="0 0 0" radius="0.19"
+                    material="color:#0a263e; metalness:0.85; roughness:0.2; emissive:#00537d; emissiveIntensity:0.8"></a-sphere>
+
+          <a-entity id="waveForearm" position="0 -0.20 0" rotation="0 0 -55">
+            <a-cylinder position="0 -0.25 0" radius="0.105" height="0.48"
+                         material="color:#09243b; metalness:0.8; roughness:0.24; emissive:#004e78; emissiveIntensity:0.7"></a-cylinder>
+
+            <a-torus position="0 -0.50 0" radius="0.105" radius-tubular="0.025"
+                     material="color:#00bfff; emissive:#00bfff; emissiveIntensity:1.4"></a-torus>
+
+            <!-- Mão -->
+            <a-entity id="waveHand" position="0 -0.64 0">
+              <a-sphere radius="0.15" scale="1 1.05 0.75"
+                        material="color:#0a2944; metalness:0.75; roughness:0.2; emissive:#005f8f; emissiveIntensity:0.8"></a-sphere>
+
+              <!-- Dedos -->
+              <a-cylinder position="-0.10 0.14 -0.01" radius="0.035" height="0.20"
+                           rotation="0 0 -18"
+                           material="color:#0d3552; metalness:0.8; roughness:0.2; emissive:#0077aa; emissiveIntensity:0.7"></a-cylinder>
+              <a-cylinder position="-0.03 0.17 -0.01" radius="0.035" height="0.23"
+                           material="color:#0d3552; metalness:0.8; roughness:0.2; emissive:#0077aa; emissiveIntensity:0.7"></a-cylinder>
+              <a-cylinder position="0.05 0.17 -0.01" radius="0.035" height="0.23"
+                           material="color:#0d3552; metalness:0.8; roughness:0.2; emissive:#0077aa; emissiveIntensity:0.7"></a-cylinder>
+              <a-cylinder position="0.12 0.14 -0.01" radius="0.035" height="0.20"
+                           rotation="0 0 18"
+                           material="color:#0d3552; metalness:0.8; roughness:0.2; emissive:#0077aa; emissiveIntensity:0.7"></a-cylinder>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+
+        <!-- Quadril e pernas -->
+        <a-box position="-0.23 -0.68 0" width="0.26" height="0.20" depth="0.34"
+               material="color:#09243b; metalness:0.82; roughness:0.23; emissive:#004e78; emissiveIntensity:0.65"></a-box>
+        <a-box position="0.23 -0.68 0" width="0.26" height="0.20" depth="0.34"
+               material="color:#09243b; metalness:0.82; roughness:0.23; emissive:#004e78; emissiveIntensity:0.65"></a-box>
+
+        <a-cylinder position="-0.23 -0.92 0" radius="0.13" height="0.38"
+                     material="color:#071a2c; metalness:0.88; roughness:0.22; emissive:#00466f; emissiveIntensity:0.65"></a-cylinder>
+        <a-cylinder position="0.23 -0.92 0" radius="0.13" height="0.38"
+                     material="color:#071a2c; metalness:0.88; roughness:0.22; emissive:#00466f; emissiveIntensity:0.65"></a-cylinder>
+
+        <a-sphere position="-0.23 -1.13 0.04" scale="0.20 0.10 0.28"
+                  material="color:#061522; metalness:0.9; roughness:0.2; emissive:#00466f; emissiveIntensity:0.7"></a-sphere>
+        <a-sphere position="0.23 -1.13 0.04" scale="0.20 0.10 0.28"
+                  material="color:#061522; metalness:0.9; roughness:0.2; emissive:#00466f; emissiveIntensity:0.7"></a-sphere>
+
+        <!-- Pequenas luzes do corpo -->
+        <a-sphere position="-0.36 -0.22 0.42" radius="0.025"
+                  material="color:#ffffff; emissive:#00cfff; emissiveIntensity:3"></a-sphere>
+        <a-sphere position="0.36 -0.22 0.42" radius="0.025"
+                  material="color:#ffffff; emissive:#00cfff; emissiveIntensity:3"></a-sphere>
+      </a-entity>
+
+      <!-- Efeito especial de reconhecimento -->
+      <a-entity id="recognitionFX" visible="false" position="0 -0.05 0.03">
+        <a-ring id="scanRing" radius-inner="0.15" radius-outer="0.19" rotation="-90 0 0"
+                material="color:#ffffff; shader:flat; opacity:0.95; transparent:true"></a-ring>
+        <a-ring id="scanRing2" radius-inner="0.28" radius-outer="0.31" rotation="-90 0 0"
+                material="color:#00d9ff; shader:flat; opacity:0.8; transparent:true"></a-ring>
+        <a-ring id="scanRing3" radius-inner="0.42" radius-outer="0.445" rotation="-90 0 0"
+                material="color:#54e6ff; shader:flat; opacity:0.55; transparent:true"></a-ring>
+        <a-torus id="energyHalo" radius="0.88" radius-tubular="0.018" rotation="90 0 0"
+                 material="color:#00d9ff; emissive:#00d9ff; emissiveIntensity:3; transparent:true; opacity:0.75"></a-torus>
+        <a-text value="✓  CONECTADO" align="center" position="0 1.45 0" width="2.3"
+                color="#ffffff" shader="msdf" material="shader:msdf; emissive:#00d9ff; emissiveIntensity:2"></a-text>
+      </a-entity>
+
+      <!-- Texto holográfico -->
+      <a-entity id="message" position="0 -1.42 0.02" scale="0 0 0">
+        <a-text value="MUITO OBRIGADO!"
+                 align="center"
+                 width="3.2"
+                 color="#54e6ff"
+                 shader="msdf"
+                 side="double"
+                 material="shader: msdf; emissive:#00cfff; emissiveIntensity:1.4"></a-text>
+
+        <a-text value="Obrigado por fazer parte desta experiência."
+                 align="center"
+                 position="0 -0.24 0"
+                 width="2.15"
+                 color="#d9f9ff"
+                 shader="msdf"
+                 side="double"></a-text>
+      </a-entity>
+
+      <!-- Partículas decorativas -->
+      <a-entity id="particles"></a-entity>
+
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const scene = document.querySelector('#scene');
+    const start = document.querySelector('#start');
+    const btn = document.querySelector('#startBtn');
+    const hint = document.querySelector('#hint');
+    const target = document.querySelector('#target');
+    const robot = document.querySelector('#robot');
+    const head = document.querySelector('#head');
+    const waveArm = document.querySelector('#waveArm');
+    const waveForearm = document.querySelector('#waveForearm');
+    const waveHand = document.querySelector('#waveHand');
+    const message = document.querySelector('#message');
+    const eyeL = document.querySelector('#eyeL');
+    const eyeR = document.querySelector('#eyeR');
+    const body = document.querySelector('#body');
+    const antennaDot = document.querySelector('#antennaDot');
+    const recognitionFX = document.querySelector('#recognitionFX');
+    const scanRing = document.querySelector('#scanRing');
+    const scanRing2 = document.querySelector('#scanRing2');
+    const scanRing3 = document.querySelector('#scanRing3');
+    const energyHalo = document.querySelector('#energyHalo');
+
+    let active = false;
+    let cameraStarted = false;
+    let animationFrame = null;
+    let animationStart = 0;
+
+    // Garante que o WebGL realmente limpe o canvas com alpha 0.
+    scene.addEventListener('loaded', () => {
+      const renderer = scene.renderer;
+      if (renderer) {
+        renderer.setClearColor(0x000000, 0);
+        renderer.autoClear = true;
+      }
+    });
+
+    btn.addEventListener('click', async () => {
+      try {
+        start.classList.add('hidden');
+        hint.classList.remove('hidden');
+        hint.textContent = 'Aponte para a imagem azul da apresentação…';
+
+        const arSystem = scene.systems['mindar-image-system'];
+        if (!cameraStarted) {
+          await arSystem.start();
+          cameraStarted = true;
+        }
+      } catch (error) {
+        console.error(error);
+        start.classList.remove('hidden');
+        hint.classList.add('hidden');
+        alert('Não foi possível iniciar a câmera. Verifique a permissão de câmera e tente novamente.');
+      }
+    });
+
+    function startRobotAnimation() {
+      if (active) return;
+      active = true;
+      animationStart = performance.now();
+      hint.textContent = '✨ Marcador reconhecido!';
+
+      // Entrada do robô.
+      robot.setAttribute('scale', '0.06 0.06 0.06');
+      robot.setAttribute('animation__entrance',
+        'property: scale; from: 0.06 0.06 0.06; to: 0.52 0.52 0.52; dur: 900; easing: easeOutElastic'
+      );
+
+      // Mensagem aparece depois da entrada.
+      message.setAttribute('scale', '0 0 0');
+      setTimeout(() => {
+        if (!active) return;
+        message.setAttribute('animation__message',
+          'property: scale; from: 0 0 0; to: 1 1 1; dur: 650; easing: easeOutBack'
+        );
+      }, 700);
+
+      // Efeito especial de reconhecimento.
+      recognitionFX.setAttribute('visible', true);
+      [scanRing, scanRing2, scanRing3].forEach((ring, i) => {
+        ring.setAttribute('scale', '0.2 0.2 0.2');
+        ring.setAttribute('animation__recognize',
+          `property: scale; from: 0.2 0.2 0.2; to: ${2.0 + i * 0.5} ${2.0 + i * 0.5} ${2.0 + i * 0.5}; dur: ${650 + i * 150}; easing: easeOutCubic`
+        );
+        ring.setAttribute('animation__fade',
+          `property: material.opacity; from: 0.95; to: 0; dur: ${650 + i * 150}; easing: easeOutQuad`
+        );
+      });
+      energyHalo.setAttribute('animation__halo',
+        'property: scale; from: 0.65 0.65 0.65; to: 1.22 1.22 1.22; dur: 850; easing: easeOutElastic'
+      );
+      energyHalo.setAttribute('animation__rotate',
+        'property: rotation; to: 90 360 0; dur: 1800; easing: linear; loop: true'
+      );
+
+      createParticles();
+      runRobotMotion();
+    }
+
+    // Animação contínua via JavaScript: fica bem visível mesmo em celulares
+    // onde animações compostas do A-Frame podem parecer estáticas.
+    function runRobotMotion() {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+
+      const tick = (now) => {
+        if (!active) return;
+        const t = (now - animationStart) / 1000;
+
+        // Flutuação suave do corpo inteiro.
+        const floatY = 0.05 + Math.sin(t * Math.PI * 1.25) * 0.055;
+        robot.object3D.position.y = floatY;
+
+        // Cabeça: olhar para os lados e voltar ao centro.
+        head.object3D.rotation.y = THREE.MathUtils.degToRad(Math.sin(t * 1.45) * 10);
+        head.object3D.rotation.z = THREE.MathUtils.degToRad(Math.sin(t * 1.8) * 3);
+
+        // Braço direito: aceno grande e inequívoco.
+        const wave = Math.sin(t * Math.PI * 2.8);
+        waveArm.object3D.rotation.z = THREE.MathUtils.degToRad(-18 + wave * 20);
+        waveForearm.object3D.rotation.z = THREE.MathUtils.degToRad(-48 + wave * 34);
+        waveHand.object3D.rotation.z = THREE.MathUtils.degToRad(-12 + wave * 25);
+
+        // Pequeno balanço do outro braço.
+        document.querySelector('#leftArm').object3D.rotation.z = THREE.MathUtils.degToRad(18 + Math.sin(t * 2.0) * 4);
+
+        // Olhos e antena pulsam.
+        const pulse = 1 + Math.sin(t * 4.2) * 0.12;
+        eyeL.object3D.scale.set(pulse, pulse, pulse);
+        eyeR.object3D.scale.set(pulse, pulse, pulse);
+        const antenna = 1 + Math.sin(t * 5.0) * 0.22;
+        antennaDot.object3D.scale.set(antenna, antenna, antenna);
+
+        animationFrame = requestAnimationFrame(tick);
+      };
+      animationFrame = requestAnimationFrame(tick);
+    }
+
+    function createParticles() {
+      const container = document.querySelector('#particles');
+      if (container.children.length) return;
+
+      for (let i = 0; i < 14; i++) {
+        const p = document.createElement('a-sphere');
+        const angle = (Math.PI * 2 * i) / 14;
+        const radius = 0.72 + (i % 3) * 0.10;
+
+        p.setAttribute('radius', 0.012 + (i % 2) * 0.008);
+        p.setAttribute('position', `${Math.cos(angle) * radius} ${-0.65 + (i % 5) * 0.35} ${0.15 + Math.sin(angle) * 0.15}`);
+        p.setAttribute('material', 'color:#7ff5ff; emissive:#00d9ff; emissiveIntensity:2.5');
+
+        p.setAttribute('animation', {
+          property: 'position',
+          to: `${Math.cos(angle) * (radius + 0.18)} ${0.25 + (i % 4) * 0.30} ${0.15 + Math.sin(angle) * 0.20}`,
+          dur: 1800 + i * 100,
+          loop: true,
+          dir: 'alternate',
+          easing: 'easeInOutSine'
+        });
+
+        container.appendChild(p);
+      }
+    }
+
+    target.addEventListener('targetFound', startRobotAnimation);
+
+    target.addEventListener('targetLost', () => {
+      active = false;
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      hint.textContent = 'Aponte novamente para a imagem azul da apresentação…';
+
+      // Reinicia a entrada para a próxima detecção.
+      robot.removeAttribute('animation__entrance');
+      robot.removeAttribute('animation__float');
+      message.removeAttribute('animation__message');
+      message.setAttribute('scale', '0 0 0');
+      robot.setAttribute('scale', '0.52 0.52 0.52');
+      recognitionFX.setAttribute('visible', false);
+      [scanRing, scanRing2, scanRing3].forEach(ring => {
+        ring.removeAttribute('animation__recognize');
+        ring.removeAttribute('animation__fade');
+        ring.setAttribute('scale', '0.2 0.2 0.2');
+        ring.setAttribute('material', 'color:#54e6ff; shader:flat; opacity:0.8; transparent:true');
+      });
+    });
+  </script>
+</body>
+</html>
